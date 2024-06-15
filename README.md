@@ -9,3 +9,7 @@ conda create -n llmpp python=3.8 -y
 conda activate llmapp
 ### 3. Install the req package
 pip install  -r requirements.txt
+
+### 4. run your application
+
+streamlit run main.py

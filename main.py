@@ -1,3 +1,4 @@
+import os
 import boto3
 import streamlit as st
 from langchain.llms.bedrock import Bedrock
@@ -8,6 +9,16 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.prompts import PromptTemplate
 from langchain.chains import retrieval_qa
+from dotenv import load_dotenv
+
+
+
+
+
+load_dotenv()
+aws_access_key_id = os.getenv("aws_access_key_id")
+aws_secret_access_key = os.getenv("aws_secret_access_key")
+region_name = os.getenv("region_name")
 
 
 def get_documents():
@@ -17,7 +28,12 @@ def get_documents():
     docs = text_splitter.split_documents(documents)
     return docs
 #bedrock client
-bedrock = boto3.client(service_name = "bedrock-runtime", region_name = "us-east-1")
+bedrock = boto3.client(
+    service_name = "bedrock-runtime", 
+    region_name = region_name,
+    aws_access_key_id = aws_access_key_id,
+    aws_secret_access_key = aws_secret_access_key
+    )
 
 # get embedding model from Bedrock
 bedrock_embedding = BedrockEmbeddings(model_id="amazon.titan-embed-text-v1", client= bedrock)
@@ -58,7 +74,32 @@ def get_llm_response(llm, vectorstore_faiss, query):
         chain_type_kwargs={"prompt":PROMPT},
         )
     response = qa({"query": query})
-    return response['results']
+    return response['result']
 
 
 def main():
+    st.set_page_config("RAG")
+    st.header("End to end RAG using bedrock")
+
+    user_question = st.text_input("Ask question from the pdf file")
+    with st.sidebar:
+        st.title("Update & create vector store")
+
+        if st.button("store vector"):
+            with st.spinner("processing..."):
+                docs = get_documents()
+                get_vector_store(docs)
+                st.success("vector store created")
+        if st.button("send"):
+            with st.spinner("processing..."):
+                faiss_index = FAISS.load_local("faiss_local", bedrock_embedding, allow_dangerous_deserialization= True)
+                llm = get_llm()
+                st.write(get_llm_response(llm, faiss_index, user_question ))
+
+
+
+
+
+
+if __name__ == "__main__":
+    main()
